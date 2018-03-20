@@ -5,17 +5,17 @@ namespace IMAG\LdapBundle\EventListener;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface,
     Symfony\Component\Form\Extension\Csrf\CsrfProvider\CsrfProviderInterface,
     Symfony\Component\HttpFoundation\Request,
-    Psr\Log\LoggerInterface,
+    Symfony\Component\HttpKernel\Log\LoggerInterface,
     Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface,
-    Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken,
     Symfony\Component\Security\Core\Exception\InvalidCsrfTokenException,
     Symfony\Component\Security\Core\SecurityContextInterface,
     Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface,
     Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface,
     Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener,
     Symfony\Component\Security\Http\HttpUtils,
-    Symfony\Component\Security\Http\Session\SessionAuthenticationStrategyInterface
-;
+    Symfony\Component\Security\Http\Session\SessionAuthenticationStrategyInterface;
+
+use IMAG\LdapBundle\Authentication\Token\LdapToken;
 
 class LdapListener extends AbstractAuthenticationListener
 {
@@ -39,30 +39,13 @@ class LdapListener extends AbstractAuthenticationListener
             $providerKey,
             $successHandler,
             $failureHandler,
-            array_merge(array(
-                'username_parameter' => '_username',
-                'password_parameter' => '_password',
-                'csrf_parameter'     => '_csrf_token',
-                'intention'          => 'ldap_authenticate',
-                'post_only'          => true,
-            ), $options),
+            $options,
             $logger,
             $dispatcher
         );
         
+        $this->providerKey = $providerKey;
         $this->csrfProvider = $csrfProvider;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function requiresAuthentication(Request $request)
-    {
-        if ($this->options['post_only'] && !$request->isMethod('post')) {
-            return false;
-        }
-
-        return parent::requiresAuthentication($request);
     }
 
     public function attemptAuthentication(Request $request)
@@ -88,6 +71,8 @@ class LdapListener extends AbstractAuthenticationListener
 
         $request->getSession()->set(SecurityContextInterface::LAST_USERNAME, $username);
 
-        return $this->authenticationManager->authenticate(new UsernamePasswordToken($username, $password, $this->providerKey));
+        return $this->authenticationManager->authenticate(new LdapToken($username, $password, $this->providerKey));
     }
+
+
 }

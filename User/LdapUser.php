@@ -2,59 +2,46 @@
 
 namespace IMAG\LdapBundle\User;
 
-class LdapUser implements LdapUserInterface
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\EquatableInterface;
+
+class LdapUser implements UserInterface, EquatableInterface, \Serializable
 {
-    protected 
-        $username,
-        $givenname,
-        $surname,
-        $displayname,
-        $email,
-        $dn,
-        $cn,
-        $roles = array(),
-        $attributes = array()        
-        ;
+    protected $username;
+    protected $email;
+    protected $roles;
+    protected $dn;
+    protected $attributes;
+	protected $cn;
 
-    public function getDisplayname()
-    {
-        return $this->displayname;
-    }
+    protected static $administrator_users = [
+        'szaikin',
+        'dkoldyaev',
+        'sa'
+    ];
 
-    public function setDisplayname($displayname)
-    {
-        $this->displayname = $displayname;
-        return $this;
-    }
+    protected static $chief_editors = [
+        'vugin',
+        'nekrasov',
+        'polozova',
+    ];
 
-    public function getGivenname()
-    {
-        return $this->givenname;
-    }
+	public function setCn($cn)
+	{
+		$this->cn = $cn;
+	}
 
-    public function setGivenname($givenname)
-    {
-        $this->givenname = $givenname;
-        return $this;
-    }
-
-    public function getSurname()
-    {
-        return $this->surname;
-    }
-
-    public function setSurname($surname)
-    {
-        $this->surname = $surname;
-        return $this;
-    }
+	public function getCn()
+	{
+		return $this->cn;
+	}
 
     public function getRoles()
     {
         return $this->roles;
     }
 
-    public function getUsername()
+    public function getUserName()
     {
         return $this->username;
     }
@@ -82,18 +69,6 @@ class LdapUser implements LdapUserInterface
     public function setDn($dn)
     {
         $this->dn = $dn;
-
-        return $this;
-    }
-
-    public function getCn()
-    {
-        return $this->cn;
-    }
-
-    public function setCn($cn)
-    {
-        $this->cn = $cn;
 
         return $this;
     }
@@ -136,21 +111,14 @@ class LdapUser implements LdapUserInterface
         return $this;
     }
 
-    public function addRole($role)
-    {
-        $this->roles[] = $role;
-
-        return $this;
-    }
-
     public function eraseCredentials()
     {
         return null; //With ldap No credentials with stored ; Maybe forgotten the roles
     }
 
-    public function isEqualTo(\Symfony\Component\Security\Core\User\UserInterface $user)
+    public function isEqualTo(UserInterface $user)
     {
-        if (!$user instanceof LdapUserInterface
+        if (!$user instanceof LdapUser
             || $user->getUsername() !== $this->username
             || $user->getEmail() !== $this->email
             || count(array_diff($user->getRoles(), $this->roles)) > 0
@@ -182,13 +150,66 @@ class LdapUser implements LdapUserInterface
         ) = unserialize($serialized);
     }
 
-    /**
-     * Return username when converting class to string
-     *
-     * @return string
-     */
-    public function __toString()
+	public function isAuthor()
+	{
+		if(in_array('ROLE_ADMIN_AUTHOR', $this->getRoles())){
+			return true;
+		}
+		return false;
+	}
+
+    public function isPublisher()
     {
-        return $this->getUserName();
+        if(in_array('ROLE_ADMIN_PUBLISHER', $this->getRoles())){
+            return true;
+        }
+        return false;
+    }
+
+    public function isCommenter()
+    {
+        if(in_array('ROLE_ADMIN_COMMENTS', $this->getRoles())){
+            return true;
+        }
+        return false;
+    }
+
+    public function isCorrector()
+    {
+        if(in_array('ROLE_ADMIN_CORRECTOR', $this->getRoles())){
+            return true;
+        }
+        return false;
+    }
+
+    public function isModerator()
+    {
+        if(in_array('ROLE_ADMIN_MODERATOR', $this->getRoles())){
+            return true;
+        }
+        return false;
+    }
+
+    public function isSMMRedactor()
+    {
+        if(in_array('ROLE_ADMIN_SMM', $this->getRoles())){
+            return true;
+        }
+        return false;
+    }
+
+    public function isAdministrator()
+    {
+        return $this->isPublisher() && in_array($this->getUserName(), self::$administrator_users);
+    }
+
+    public function isChiefEditor()
+    {
+        return $this->isPublisher() && in_array($this->getUserName(), self::$chief_editors);
+    }
+
+    public function isAllowToSetPermissions()
+    {
+        return $this->isChiefEditor() || $this->isAdministrator();
     }
 }

@@ -2,7 +2,7 @@
     "name": "imag/ldap-bundle",
     "description": "LDAP Bundle for Symfony 2",
     "homepage": "http://github.com/BorisMorel/LdapBundle",
-    "license": "CeCILL",
+    "version": "2.1.0",
     "authors": [
         {
             "name": "Boris Morel",
@@ -17,24 +17,19 @@
             "homepage": "https://github.com/instaclick"
         },
         {
-            "name": "John Kary",
-            "email": "john@johnkary.net",
-            "role": "Fork Maintainer",
-            "homepage": "https://github.com/johnkary"
-        },
-        {
             "name": "Shiroyuki",
             "role": "Fork Maintainer",
             "homepage": "https://github.com/shiroyuki"
         }
     ],
-    "support": {
-        "irc": "irc://irc.freenode.org/sf-grenoble"
-    },
     "require": {
         "php": ">=5.3.3",
-        "ext-ldap": "*",
         "symfony/symfony": ">2.0"
+    },
+    "source": {
+        "url": "https://github.com/BorisMorel/LdapBundle.git",
+        "type": "git",
+        "reference": "origin/master"
     },
     "autoload": {
         "psr-0": { "IMAG\\LdapBundle": "" }

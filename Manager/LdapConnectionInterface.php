@@ -16,6 +16,4 @@ interface LdapConnectionInterface
     function getFilter($index);
     function getNameAttribute($index);
     function getUserAttribute($index);
-    function getErrno($resource = null);
-    function getError($resource = null);
 }

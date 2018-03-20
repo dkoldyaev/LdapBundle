@@ -44,5 +44,7 @@ class IMAGLdapBundle extends Bundle
 
         $extension = $container->getExtension('security');
         $extension->addSecurityListenerFactory(new LdapFactory);
+//	    $GLOBALS['test'] = $container;
+
     }
 }

@@ -13,66 +13,27 @@ class Configuration implements ConfigurationInterface
     $rootNode = $treeBuilder->root('imag_ldap');
     $rootNode
         ->children()
-            ->append($this->addClientNode())
-            ->append($this->addUserNode())
-            ->append($this->addRoleNode())
-            ->scalarNode('user_class')
-              ->defaultValue("IMAG\LdapBundle\User\LdapUser")
-            ->end()
-        ->end()
-        ;
-
-    return $treeBuilder;
-  }
-
-  private function addClientNode()
-  {
-      $treeBuilder = new TreeBuilder();
-      $node = $treeBuilder->root('client');
-
-      $node
-          ->isRequired()
-          ->children()
+          ->arrayNode('client')
+            ->children()
               ->scalarNode('host')->isRequired()->cannotBeEmpty()->end()
               ->scalarNode('port')->defaultValue(389)->end()
               ->scalarNode('version')->end()
               ->scalarNode('username')->end()
               ->scalarNode('password')->end()
-              ->booleanNode('bind_username_before')->defaultFalse()->end()
               ->scalarNode('referrals_enabled')->end()
               ->scalarNode('network_timeout')->end()
-              ->booleanNode('skip_roles')->defaultFalse()->end()
-           ->end()
-          ;
-
-      return $node;
-  }
-
-  private function addUserNode()
-  {
-      $treeBuilder = new TreeBuilder();
-      $node = $treeBuilder->root('user');
-
-      $node
-          ->isRequired()
-          ->children()
+            ->end()
+          ->end()
+          ->arrayNode('user')
+            ->children()
               ->scalarNode('base_dn')->isRequired()->cannotBeEmpty()->end()
               ->scalarNode('filter')->end()
               ->scalarNode('name_attribute')->defaultValue('uid')->end()
               ->variableNode('attributes')->defaultValue(array())->end()
+            ->end()
           ->end()
-          ;
-
-      return $node;
-  }
-
-  private function addRoleNode()
-  {
-      $treeBuilder = new TreeBuilder();
-      $node = $treeBuilder->root('role');
-
-      $node
-          ->children()
+          ->arrayNode('role')
+            ->children()
               ->scalarNode('base_dn')->isRequired()->cannotBeEmpty()->end()
               ->scalarNode('filter')->end()
               ->scalarNode('name_attribute')->defaultValue('cn')->end()
@@ -83,10 +44,11 @@ class Configuration implements ConfigurationInterface
                   ->thenInvalid('Only dn or username')
                 ->end()
               ->end()
+            ->end()
           ->end()
-          ;
+        ->end()
+        ;
 
-      return $node;
+    return $treeBuilder;      
   }
-
 }

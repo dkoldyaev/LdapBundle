@@ -3,8 +3,6 @@
 namespace IMAG\LdapBundle\Manager;
 
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\Exception\UsernameNotFoundException;
-use IMAG\LdapBundle\Exception\ConnectionException;
 
 class LdapManagerUser implements LdapManagerUserInterface
 {
@@ -12,115 +10,53 @@ class LdapManagerUser implements LdapManagerUserInterface
         $ldapConnection,
         $username,
         $password,
-        $params,
-        $ldapUser
+        $_ldapUser
         ;
 
     public function __construct(LdapConnectionInterface $conn)
     {
         $this->ldapConnection = $conn;
-        $this->params = $this->ldapConnection->getParameters();
+        $this->params = $this->ldapConnection
+            ->getParameters();
     }
 
-    /**
-     * @throws inherit
-     */
     public function exists($username)
     {
-        $this
+        return (bool) $this
             ->setUsername($username)
             ->addLdapUser()
             ;
     }
 
-    /**
-     * return true
-     */
     public function auth()
     {
-        if (strlen($this->password) === 0) {
-            throw new ConnectionException('Password can\'t be empty');
-        }
-        
-        if (null === $this->ldapUser) {
-            $this->bindByUsername();
-            $this->doPass();
-        } else {
-            $this->doPass();
-            $this->bindByDn();
-        }        
+        return (bool) ($this->doPass() && $this->bind());
     }
 
-    /**
-     * @throws inherit
-     */
     public function doPass()
     {
-        $this
-            ->addLdapUser()
-            ->addLdapRoles()
-            ;
-
-        return $this;
+        return $this->addLdapUser() && $this->addLdapRoles() ? $this : false;
     }
 
     public function getDn()
     {
-        return $this->ldapUser['dn'];
-    }
-
-    public function getCn()
-    {
-        return $this->ldapUser['cn'][0];
+        return $this->_ldapUser['dn'];
     }
 
     public function getEmail()
     {
-        return isset($this->ldapUser['mail'][0]) ? $this->ldapUser['mail'][0] : '';
+        return isset($this->_ldapUser['mail'][0]) ? $this->_ldapUser['mail'][0] : '';
     }
 
     public function getAttributes()
     {
         $attributes = array();
         foreach ($this->params['user']['attributes'] as $attrName) {
-            if (isset($this->ldapUser[$attrName][0])) {
-                $attributes[$attrName] = $this->ldapUser[$attrName][0];
+            if (isset($this->_ldapUser[$attrName][0])) {
+                $attributes[$attrName] = $this->_ldapUser[$attrName][0];
             }
         }
-
         return $attributes;
-    }
-
-    public function getLdapUser()
-    {
-        return $this->ldapUser;
-    }
-
-    public function getDisplayName()
-    {
-        if (isset($this->ldapUser['displayname'][0])) {
-            return $this->ldapUser['displayname'][0];
-        } else {
-            return false;
-        }
-    }
-
-    public function getGivenName()
-    {
-        if (isset($this->ldapUser['givenname'][0])) {
-            return $this->ldapUser['givenname'][0];
-        } else {
-            return false;
-        }
-    }
-
-    public function getSurname()
-    {
-        if (isset($this->ldapUser['sn'][0])) {
-            return $this->ldapUser['sn'][0];
-        } else {
-            return false;
-        }
     }
 
     public function getUsername()
@@ -130,7 +66,7 @@ class LdapManagerUser implements LdapManagerUserInterface
 
     public function getRoles()
     {
-        return $this->ldapUser['roles'];
+        return $this->_ldapUser['roles'];
     }
 
     public function setUsername($username)
@@ -151,16 +87,10 @@ class LdapManagerUser implements LdapManagerUserInterface
         return $this;
     }
 
-    /**
-     * @return mixed $this
-     * @throws \Symfony\Component\Security\Core\Exception\UsernameNotFoundException | Username not found
-     * @throws \RuntimeException | Inconsistent Fails
-     * @throws \IMAG\LdapBundle\Exception\ConnectionException | Connection error
-     */
     private function addLdapUser()
     {
         if (!$this->username) {
-            throw new \InvalidArgumentException('User is not defined, please use setUsername');
+            throw new \Exception('User is not defined, pls use setUsername');
         }
 
         $filter = isset($this->params['user']['filter'])
@@ -178,40 +108,22 @@ class LdapManagerUser implements LdapManagerUserInterface
             ));
 
         if ($entries['count'] > 1) {
-            throw new \RuntimeException("This search can only return a single user");
+            throw new \Exception("This search can only return a single user");
         }
 
         if ($entries['count'] == 0) {
-            throw new UsernameNotFoundException(sprintf('Username "%s" doesn\'t exists', $this->username));
+            return false;
         }
 
-        $this->ldapUser = $entries[0];
+        $this->_ldapUser = $entries[0];
 
         return $this;
     }
 
-    /**
-     * @return mixed $this
-     * @throws \RuntimeException | Inconsistent Fails
-     * @throws \InvalidArgumentException | Configuration exception
-     * @throws \IMAG\LdapBundle\Exception\ConnectionException | Connection error
-     */
     private function addLdapRoles()
     {
-        if (null === $this->ldapUser) {
-            throw new \RuntimeException('Cannot assign LDAP roles before authenticating user against LDAP');
-        }
-
-        $this->ldapUser['roles'] = array();
-
-        if (true === $this->params['client']['skip_roles']) {
-            $this->ldapUser['roles'] = array('ROLE_USER_DEFAULT');
-
-            return;
-        }
-
-        if (!isset($this->params['role']) && false ===  $this->params['client']['skip_roles']) {
-            throw new \InvalidArgumentException("If you want to skip getting the roles, set config option imag_ldap:client:skip_roles to true");
+        if (!$this->_ldapUser) {
+            throw new \Exception('AddRoles() can be involved only when addUser() have return an user');
         }
 
         $tab = array();
@@ -226,7 +138,8 @@ class LdapManagerUser implements LdapManagerUserInterface
                 'filter'   => sprintf('(&%s(%s=%s))',
                                       $filter,
                                       $this->params['role']['user_attribute'],
-                                      $this->ldapConnection->escape($this->getUserId())
+//                                      $this->ldapConnection->escape($this->getUserId())
+                                      $this->ldapConnection->escape($this->getUsername())
                 ),
                 'attrs'    => array(
                     $this->params['role']['name_attribute']
@@ -239,28 +152,22 @@ class LdapManagerUser implements LdapManagerUserInterface
             ));
         }
 
-        $this->ldapUser['roles'] = $tab;
+        $this->_ldapUser['roles'] = $tab;
 
         return $this;
     }
 
-    private function bindByDn()
+    private function bind()
     {
         return $this->ldapConnection
-            ->bind($this->ldapUser['dn'], $this->password);
-    }
-
-    private function bindByUsername()
-    {
-        return $this->ldapConnection
-            ->bind($this->username, $this->password);
+            ->bind($this->_ldapUser['dn'], $this->password);
     }
 
     private static function slugify($role)
     {
-        $role = preg_replace('/\W+/u', '_', $role);
+        $role = preg_replace('/\W+/', '_', $role);
         $role = trim($role, '_');
-        $role = mb_strtoupper($role, 'UTF-8');
+        $role = strtoupper($role);
 
         return $role;
     }
@@ -269,7 +176,7 @@ class LdapManagerUser implements LdapManagerUserInterface
     {
         switch ($this->params['role']['user_id']) {
         case 'dn':
-            return $this->ldapUser['dn'];
+            return $this->_ldapUser['dn'];
             break;
 
         case 'username':
@@ -277,7 +184,11 @@ class LdapManagerUser implements LdapManagerUserInterface
             break;
 
         default:
-            throw new \Exception(sprintf("The value can't be retrieved for this user_id : %s",$this->params['role']['user_id']));
+            throw new \Exception(sprintf('The value can\'t be retrieve for this user_id : %s',$this->params['role']['user_id']));
         }
     }
+
+	public function getCn(){
+		return $this->_ldapUser['cn'][0];
+	}
 }
